@@ -2,6 +2,10 @@
 import type { FormSubmitEvent } from "@nuxt/ui";
 import { z } from "zod";
 
+defineOptions({
+  name: 'FinancingCalculator'
+});
+
 const schema = z
   .object({
     months: z.number().int().gt(0).optional(),
@@ -32,19 +36,22 @@ const state = reactive<Partial<Schema>>({
 
 const toast = useToast();
 const { calculateFinancing } = useFinancialCalculators();
+const isCalculating = ref(false);
 
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-  const fields = Object.values(event.data).filter(Boolean);
-  if (fields.length !== 3) {
-    toast.add({
-      title: "Erro",
-      description: "Preencha exatamente 3 campos para calcular o quarto.",
-      color: "error",
-    });
-    return;
-  }
+function onSubmit(event: FormSubmitEvent<Schema>) {
+  isCalculating.value = true;
 
   try {
+    const fields = Object.values(event.data).filter(Boolean);
+    if (fields.length !== 3) {
+      toast.add({
+        title: "Erro",
+        description: "Preencha exatamente 3 campos para calcular o quarto.",
+        color: "error",
+      });
+      return;
+    }
+
     const result = calculateFinancing(event.data);
 
     if (!result) {
@@ -70,6 +77,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       description: errorMessage,
       color: "error",
     });
+  } finally {
+    isCalculating.value = false;
   }
 }
 
@@ -86,14 +95,17 @@ function resetForm() {
     :schema="schema"
     :state="state"
     class="space-y-4"
-    :validate-on="[]"
     @submit="onSubmit"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
       <UFormField label="Número de meses" name="months">
         <UInput
-          v-model="state.months"
+          v-model.number="state.months"
           type="number"
+          inputmode="numeric"
+          min="1"
+          max="600"
+          step="1"
           placeholder="Ex: 24"
           class="w-full"
         />
@@ -101,8 +113,11 @@ function resetForm() {
 
       <UFormField label="Taxa de Juros Mensal (%)" name="interestRate">
         <UInput
-          v-model="state.interestRate"
+          v-model.number="state.interestRate"
           type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
           placeholder="Ex: 1.5"
           class="w-full"
         />
@@ -110,8 +125,11 @@ function resetForm() {
 
       <UFormField label="Valor da Prestação (R$)" name="installment">
         <UInput
-          v-model="state.installment"
+          v-model.number="state.installment"
           type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
           placeholder="Ex: 1200.00"
           class="w-full"
         />
@@ -119,8 +137,11 @@ function resetForm() {
 
       <UFormField label="Valor Financiado (R$)" name="financedValue">
         <UInput
-          v-model="state.financedValue"
+          v-model.number="state.financedValue"
           type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
           placeholder="Ex: 200000.00"
           class="w-full"
         />
@@ -128,7 +149,7 @@ function resetForm() {
     </div>
 
     <footer class="grid grid-cols-[1fr_min-content] gap-4">
-      <UButton type="submit" class="flex justify-center"> Calcular </UButton>
+      <UButton type="submit" class="flex justify-center" :loading="isCalculating"> Calcular </UButton>
       <UButton variant="outline" @click="resetForm">Limpar</UButton>
     </footer>
   </UForm>

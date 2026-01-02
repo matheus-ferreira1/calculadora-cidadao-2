@@ -2,6 +2,10 @@
 import type { FormSubmitEvent } from "@nuxt/ui";
 import { z } from "zod";
 
+defineOptions({
+  name: 'InvestmentCalculator'
+});
+
 const schema = z
   .object({
     months: z.number().int().gt(0).optional(),
@@ -30,23 +34,24 @@ const state = reactive<Partial<Schema>>({
   finalValue: undefined,
 });
 
-
-
 const toast = useToast();
 const { calculateInvestment } = useFinancialCalculators();
+const isCalculating = ref(false);
 
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-  const fields = Object.values(event.data).filter(Boolean);
-  if (fields.length !== 3) {
-    toast.add({
-      title: "Erro",
-      description: "Preencha exatamente 3 campos para calcular o quarto.",
-      color: "error",
-    });
-    return;
-  }
+function onSubmit(event: FormSubmitEvent<Schema>) {
+  isCalculating.value = true;
 
   try {
+    const fields = Object.values(event.data).filter(Boolean);
+    if (fields.length !== 3) {
+      toast.add({
+        title: "Erro",
+        description: "Preencha exatamente 3 campos para calcular o quarto.",
+        color: "error",
+      });
+      return;
+    }
+
     const result = calculateInvestment(event.data);
 
     if (!result) {
@@ -72,6 +77,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       description: errorMessage,
       color: "error",
     });
+  } finally {
+    isCalculating.value = false;
   }
 }
 
@@ -88,14 +95,17 @@ function resetForm() {
     :schema="schema"
     :state="state"
     class="space-y-4"
-    :validate-on="[]"
     @submit="onSubmit"
   >
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
       <UFormField label="Número de meses" name="months">
         <UInput
-          v-model="state.months"
+          v-model.number="state.months"
           type="number"
+          inputmode="numeric"
+          min="1"
+          max="600"
+          step="1"
           placeholder="Ex: 24"
           class="w-full"
         />
@@ -103,8 +113,11 @@ function resetForm() {
 
       <UFormField label="Taxa de Juros Mensal (%)" name="interestRate">
         <UInput
-          v-model="state.interestRate"
+          v-model.number="state.interestRate"
           type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
           placeholder="Ex: 1.5"
           class="w-full"
         />
@@ -112,8 +125,11 @@ function resetForm() {
 
       <UFormField label="Valor do Depósito Mensal (R$)" name="monthlyDeposit">
         <UInput
-          v-model="state.monthlyDeposit"
+          v-model.number="state.monthlyDeposit"
           type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
           placeholder="Ex: 500.00"
           class="w-full"
         />
@@ -121,8 +137,11 @@ function resetForm() {
 
       <UFormField label="Valor Final (R$)" name="finalValue">
         <UInput
-          v-model="state.finalValue"
+          v-model.number="state.finalValue"
           type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
           placeholder="Ex: 15000.00"
           class="w-full"
         />
@@ -130,7 +149,7 @@ function resetForm() {
     </div>
 
     <footer class="grid grid-cols-[1fr_min-content] gap-4">
-      <UButton type="submit" class="flex justify-center"> Calcular </UButton>
+      <UButton type="submit" class="flex justify-center" :loading="isCalculating"> Calcular </UButton>
       <UButton variant="outline" @click="resetForm">Limpar</UButton>
     </footer>
   </UForm>
